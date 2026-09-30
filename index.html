@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Wardrobe - Tu Estilista Virtual</title>
+    <!-- Enlace a nuestros estilos compilados de SASS/CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+    <!-- FontAwesome para iconos modernos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+    <header class="app-header">
+        <h1><i class="fa-solid fa-shirt"></i> Mi Armario Inteligente</h1>
+        <nav class="app-nav">
+            <button class="nav-btn active" data-target="wardrobe-section"><i class="fa-solid fa-vest"></i> Armario</button>
+            <button class="nav-btn" data-target="add-section"><i class="fa-solid fa-camera"></i> Nueva Prenda</button>
+            <button class="nav-btn" data-target="outfit-section"><i class="fa-solid fa-wand-magic-sparkles"></i> Sácame de Apuros</button>
+        </nav>
+    </header>
+
+    <main class="container">
+        <!-- SECCIÓN 1: EL ARMARIO -->
+        <section id="wardrobe-section" class="app-section active">
+            <h2>Tu Guardarropa</h2>
+            <div class="filters">
+                <select id="filter-category">
+                    <option value="all">Todas las categorías</option>
+                    <option value="superior">Parte Superior</option>
+                    <option value="inferior">Parte Inferior</option>
+                    <option value="calzado">Calzado</option>
+                    <option value="abrigos">Abrigos / Chaquetas</option>
+                </select>
+            </div>
+            <div id="wardrobe-grid" class="wardrobe-grid">
+                <!-- Aquí se cargarán dinámicamente las prendas guardadas -->
+                <p class="empty-message">Aún no tienes prendas registradas. ¡Agrega la primera con tu cámara!</p>
+            </div>
+        </section>
+
+        <!-- SECCIÓN 2: AGREGAR PRENDA (CÁMARA) -->
+        <section id="add-section" class="app-section">
+            <h2>Registrar Nueva Prenda</h2>
+            <div class="camera-container">
+                <video id="camera-stream" autoplay playsinline></video>
+                <canvas id="snapshot-canvas" style="display: none;"></canvas>
+                <img id="captured-image" alt="Prenda capturada" style="display: none;">
+                
+                <div class="camera-controls">
+                    <button id="start-camera-btn" class="btn secondary"><i class="fa-solid fa-video"></i> Encender Cámara</button>
+                    <button id="take-photo-btn" class="btn primary" disabled><i class="fa-solid fa-camera"></i> Tomar Foto</button>
+                    <button id="retake-btn" class="btn warning" style="display: none;"><i class="fa-solid fa-rotate-right"></i> Repetir Foto</button>
+                </div>
+            </div>
+
+            <form id="clothing-form" class="clothing-form">
+                <div class="form-group">
+                    <label for="clothing-category">Categoría:</label>
+                    <select id="clothing-category" required>
+                        <option value="superior">Parte Superior (Camisa, Polera, etc.)</option>
+                        <option value="inferior">Parte Inferior (Pantalón, Short, etc.)</option>
+                        <option value="calzado">Calzado (Zapatillas, Zapatos)</option>
+                        <option value="abrigos">Abrigo / Chaqueta</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="clothing-color">Color Principal:</label>
+                    <input type="text" id="clothing-color" placeholder="Ej: Negro, Azul, Blanco..." required>
+                </div>
+
+                <div class="form-group">
+                    <label for="clothing-style">Estilo / Ocasión:</label>
+                    <select id="clothing-style">
+                        <option value="casual">Casual</option>
+                        <option value="formal">Formal / Oficina</option>
+                        <option value="deportivo">Deportivo</option>
+                        <option value="fiesta">Fiesta / Noche</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn success" id="save-clothing-btn"><i class="fa-solid fa-floppy-disk"></i> Guardar en mi Armario</button>
+            </form>
+        </section>
+
+        <!-- SECCIÓN 3: GENERADOR DE OUTFITS -->
+        <section id="outfit-section" class="app-section">
+            <h2>Asistente de Estilo "Sácame de Apuros"</h2>
+            <p>Deja que el sistema combine lo mejor de tu ropa actual según la ocasión.</p>
+            
+            <div class="outfit-controls">
+                <div class="form-group">
+                    <label for="outfit-occasion">¿Para qué ocasión necesitas ropa hoy?</label>
+                    <select id="outfit-occasion">
+                        <option value="casual">Un día tranquilo / Casual</option>
+                        <option value="formal">Trabajo / Reunión importante</option>
+                        <option value="deportivo">Hacer ejercicio / Comodidad</option>
+                        <option value="fiesta">Salida nocturna / Fiesta</option>
+                    </select>
+                </div>
+                <button id="generate-outfit-btn" class="btn primary glowing"><i class="fa-solid fa-wand-magic-sparkles"></i> ¡Generar Outfit Ideal!</button>
+            </div>
+
+            <div id="outfit-result" class="outfit-result">
+                <!-- Aquí aparecerá la combinación recomendada -->
+            </div>
+        </section>
+    </main>
+
+    <!-- Enlace a nuestro script principal -->
+    <script src="js/app.js"></script>
+</body>
+</html>
