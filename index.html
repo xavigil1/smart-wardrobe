@@ -89,6 +89,16 @@
             <h2>Asistente de Estilo "Sácame de Apuros"</h2>
             <p>Deja que el sistema combine lo mejor de tu ropa actual según la ocasión.</p>
             
+            <!-- NUEVO: Campo para configurar la API Key -->
+            <div class="form-group" style="background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px dashed #cbd5e1; margin-bottom: 1.5rem;">
+                <label for="api-key-input" style="font-size: 0.85rem; color: #475569;"><i class="fa-solid fa-key"></i> Configuración de Gemini API Key:</label>
+                <div style="display: flex; gap: 0.5rem; margin-top: 0.4rem;">
+                    <input type="password" id="api-key-input" placeholder="Pega tu clave de Google AI Studio aquí..." style="flex: 1;">
+                    <button id="save-key-btn" class="btn secondary" style="padding: 0.5rem 1rem;"><i class="fa-solid fa-check"></i> Guardar</button>
+                </div>
+                <small style="color: #64748b; font-size: 0.75rem; display: block; margin-top: 4px;">Se guardará de forma segura solo en tu navegador (LocalStorage).</small>
+            </div>
+
             <div class="outfit-controls">
                 <div class="form-group">
                     <label for="outfit-occasion">¿Para qué ocasión necesitas ropa hoy?</label>

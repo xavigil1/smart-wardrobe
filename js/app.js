@@ -1,4 +1,24 @@
 document.addEventListener('DOMContentLoaded', () => {
+    function readWardrobe() {
+        try {
+            const storedWardrobe = JSON.parse(localStorage.getItem('my_wardrobe') || '[]');
+            return Array.isArray(storedWardrobe) ? storedWardrobe : [];
+        } catch (error) {
+            console.error('No se pudo leer el armario guardado:', error);
+            return [];
+        }
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>'"]/g, character => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            "'": '&#39;',
+            '"': '&quot;'
+        })[character]);
+    }
+
     // --- NAVEGACIÓN ENTRE PESTAÑAS ---
     const navButtons = document.querySelectorAll('.nav-btn');
     const sections = document.querySelectorAll('.app-section');
@@ -32,6 +52,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     startCameraBtn.addEventListener('click', async () => {
         try {
+            if (!navigator.mediaDevices?.getUserMedia) {
+                throw new Error('El navegador no admite acceso a la cámara.');
+            }
+
             mediaStream = await navigator.mediaDevices.getUserMedia({ 
                 video: { facingMode: 'environment' } // Intenta usar la cámara trasera en móviles
             });
@@ -51,11 +75,20 @@ document.addEventListener('DOMContentLoaded', () => {
     takePhotoBtn.addEventListener('click', () => {
         const width = videoElement.videoWidth;
         const height = videoElement.videoHeight;
+
+        if (!width || !height) {
+            alert('Espera a que la cámara esté lista antes de tomar la foto.');
+            return;
+        }
         
         canvasElement.width = width;
         canvasElement.height = height;
         
         const context = canvasElement.getContext('2d');
+        if (!context) {
+            alert('No se pudo preparar la captura de la cámara.');
+            return;
+        }
         context.drawImage(videoElement, 0, 0, width, height);
         
         capturedImageDataUrl = canvasElement.toDataURL('image/png');
@@ -79,11 +112,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function stopCamera() {
-    if (mediaStream) {
-        mediaStream.getTracks().forEach(track => track.stop()); // Agregamos .forEach() y los paréntesis en (track)
-        mediaStream = null;
+        if (mediaStream) {
+            mediaStream.getTracks().forEach(track => track.stop());
+            mediaStream = null;
+        }
+        videoElement.srcObject = null;
     }
-}
 
     // --- GUARDAR PRENDA EN LOCALSTORAGE ---
     const clothingForm = document.getElementById('clothing-form');
@@ -110,7 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         // Obtener armario actual del almacenamiento local
-        let wardrobe = JSON.parse(localStorage.getItem('my_wardrobe')) || [];
+        let wardrobe = readWardrobe();
         wardrobe.push(newClothingItem);
         localStorage.setItem('my_wardrobe', JSON.stringify(wardrobe));
 
@@ -130,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- CARGAR Y MOSTRAR ARMARIO ---
     function loadWardrobe(filter = 'all') {
         const grid = document.getElementById('wardrobe-grid');
-        const wardrobe = JSON.parse(localStorage.getItem('my_wardrobe')) || [];
+        const wardrobe = readWardrobe();
 
         grid.innerHTML = '';
 
@@ -147,11 +181,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const card = document.createElement('div');
             card.className = 'clothing-card';
             card.innerHTML = `
-                <img src="${item.image}" alt="Prenda">
+                <img src="${escapeHtml(item.image)}" alt="Prenda">
                 <div class="clothing-info">
-                    <h3>${item.category}</h3>
-                    <p><strong>Color:</strong> ${item.color}</p>
-                    <p><strong>Estilo:</strong> ${item.style}</p>
+                    <h3>${escapeHtml(item.category)}</h3>
+                    <p><strong>Color:</strong> ${escapeHtml(item.color)}</p>
+                    <p><strong>Estilo:</strong> ${escapeHtml(item.style)}</p>
                 </div>
                 <button class="delete-btn" onclick="window.deleteClothing(${item.id})"><i class="fa-solid fa-trash"></i> Eliminar</button>
             `;
@@ -166,7 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Función global para eliminar prendas
     window.deleteClothing = function(id) {
         if (confirm('¿Estás seguro de eliminar esta prenda?')) {
-            let wardrobe = JSON.parse(localStorage.getItem('my_wardrobe')) || [];
+            let wardrobe = readWardrobe();
             wardrobe = wardrobe.filter(item => item.id !== id);
             localStorage.setItem('my_wardrobe', JSON.stringify(wardrobe));
             loadWardrobe(filterCategory.value);
@@ -176,13 +210,37 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- GENERADOR DE OUTFITS CON INTELIGENCIA ARTIFICIAL (GEMINI) ---
     const generateOutfitBtn = document.getElementById('generate-outfit-btn');
     const outfitResult = document.getElementById('outfit-result');
+    const apiKeyInput = document.getElementById('api-key-input');
+    const saveKeyBtn = document.getElementById('save-key-btn');
 
-    // CONFIGURACIÓN DE TU API KEY DE GEMINI
-    // (Reemplaza 'TU_API_KEY_AQUI' por tu clave real obtenida en Google AI Studio)
-    const GEMINI_API_KEY = 'TU_API_KEY_AQUI'; 
+    // Cargar la API Key guardada previamente en el navegador (si existe)
+    const savedApiKey = localStorage.getItem('gemini_api_key');
+    if (savedApiKey) {
+        apiKeyInput.value = savedApiKey;
+    }
+
+    // Botón para guardar la API Key manualmente
+    saveKeyBtn.addEventListener('click', () => {
+        const key = apiKeyInput.value.trim();
+        if (key) {
+            localStorage.setItem('gemini_api_key', key);
+            alert('¡API Key guardada correctamente en tu navegador!');
+        } else {
+            localStorage.removeItem('gemini_api_key');
+            alert('Se ha borrado la API Key.');
+        }
+    });
 
     generateOutfitBtn.addEventListener('click', async () => {
-        const wardrobe = JSON.parse(localStorage.getItem('my_wardrobe')) || [];
+        const currentApiKey = apiKeyInput.value.trim() || localStorage.getItem('gemini_api_key');
+        
+        if (!currentApiKey) {
+            alert('Por favor, ingresa y guarda tu API Key de Gemini en el campo superior antes de generar un outfit.');
+            apiKeyInput.focus();
+            return;
+        }
+
+        const wardrobe = readWardrobe();
         const occasion = document.getElementById('outfit-occasion').value;
 
         if (wardrobe.length === 0) {
@@ -207,7 +265,6 @@ document.addEventListener('DOMContentLoaded', () => {
         outfitResult.innerHTML = `<p class="empty-message">Analizando combinaciones y teoría del color...</p>`;
 
         try {
-            // Preparamos un resumen del armario en texto para enviárselo a Gemini
             const wardrobeSummary = wardrobe.map((item, index) => 
                 `ID: ${index}, Categoría: ${item.category}, Color: ${item.color}, Estilo: ${item.style}`
             ).join('\n');
@@ -223,7 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 "advice": "Un consejo breve y motivador de por qué este estilo funciona para la ocasión y cómo combinar los colores."
             }`;
 
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${currentApiKey}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -232,30 +289,37 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             const data = await response.json();
-            const textResponse = data.candidates[0].content.parts[0].text;
             
-            // Limpiar posibles bloques de código markdown que devuelva el modelo
+            if (data.error) {
+                throw new Error(data.error.message || 'Error en la API de Gemini');
+            }
+
+            const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (!textResponse) {
+                throw new Error('Gemini devolvió una respuesta vacía.');
+            }
             const cleanJsonText = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
             const resultJson = JSON.parse(cleanJsonText);
+            if (!Array.isArray(resultJson.selectedIds) || typeof resultJson.advice !== 'string') {
+                throw new Error('La respuesta de Gemini tiene un formato inválido.');
+            }
 
-            // Buscar las prendas seleccionadas por Gemini en el armario
             const selectedItems = resultJson.selectedIds.map(id => wardrobe.find((_, idx) => idx === id)).filter(Boolean);
 
-            // Renderizar resultado visual y el consejo de la IA
             outfitResult.innerHTML = `
                 <div style="grid-column: 1 / -1; background: #e0e7ff; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
                     <h3 style="color: #4f46e5; margin-bottom: 0.5rem;"><i class="fa-solid fa-wand-magic-sparkles"></i> Consejo del Estilista Virtual</h3>
-                    <p style="color: #374151; font-size: 0.95rem; line-height: 1.4;">${resultJson.advice}</p>
+                    <p style="color: #374151; font-size: 0.95rem; line-height: 1.4;">${escapeHtml(resultJson.advice)}</p>
                 </div>
             `;
 
             const renderItemCard = (item) => `
                 <div class="clothing-card">
-                    <img src="${item.image}" alt="${item.category}">
+                    <img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.category)}">
                     <div class="clothing-info">
-                        <h3>${item.category}</h3>
-                        <p><strong>Color:</strong> ${item.color}</p>
-                        <p><strong>Estilo:</strong> ${item.style}</p>
+                        <h3>${escapeHtml(item.category)}</h3>
+                        <p><strong>Color:</strong> ${escapeHtml(item.color)}</p>
+                        <p><strong>Estilo:</strong> ${escapeHtml(item.style)}</p>
                     </div>
                 </div>
             `;
@@ -266,7 +330,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (error) {
             console.error("Error al conectar con Gemini:", error);
-            // Plan B automático si ocurre algún error de red o parseo: selección aleatoria inteligente
             fallbackRandomOutfit(superiors, inferiors, shoes, coats, occasion);
         } finally {
             generateOutfitBtn.disabled = false;
@@ -274,7 +337,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Función de respaldo por si falla la API
     function fallbackRandomOutfit(superiors, inferiors, shoes, coats, occasion) {
         const randomSuperior = superiors[Math.floor(Math.random() * superiors.length)];
         const randomInferior = inferiors[Math.floor(Math.random() * inferiors.length)];
@@ -282,8 +344,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         outfitResult.innerHTML = `
             <div style="grid-column: 1 / -1; background: #fef3c7; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-                <h3 style="color: #d97706;"><i class="fa-solid fa-triangle-exclamation"></i> Modo Local (Sin conexión a IA)</h3>
-                <p>Aquí tienes una combinación rápida para la ocasión: <strong>${occasion}</strong></p>
+                <h3 style="color: #d97706;"><i class="fa-solid fa-triangle-exclamation"></i> Modo Local (Verifica tu API Key)</h3>
+                <p>Ocurrió un error con la IA o la llave es inválida. Aquí tienes una combinación rápida para: <strong>${occasion}</strong></p>
             </div>
         `;
         
