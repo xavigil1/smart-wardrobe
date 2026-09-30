@@ -173,11 +173,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- GENERADOR DE OUTFITS "SÁCAME DE APUROS" ---
+    // --- GENERADOR DE OUTFITS CON INTELIGENCIA ARTIFICIAL (GEMINI) ---
     const generateOutfitBtn = document.getElementById('generate-outfit-btn');
     const outfitResult = document.getElementById('outfit-result');
 
-    generateOutfitBtn.addEventListener('click', () => {
+    // CONFIGURACIÓN DE TU API KEY DE GEMINI
+    // (Reemplaza 'TU_API_KEY_AQUI' por tu clave real obtenida en Google AI Studio)
+    const GEMINI_API_KEY = 'TU_API_KEY_AQUI'; 
+
+    generateOutfitBtn.addEventListener('click', async () => {
         const wardrobe = JSON.parse(localStorage.getItem('my_wardrobe')) || [];
         const occasion = document.getElementById('outfit-occasion').value;
 
@@ -193,27 +197,96 @@ document.addEventListener('DOMContentLoaded', () => {
         const coats = wardrobe.filter(i => i.category === 'abrigos');
 
         if (superiors.length === 0 || inferiors.length === 0 || shoes.length === 0) {
-            outfitResult.innerHTML = `<p class="empty-message" style="color: #d97706;">Para generar un outfit necesitas al menos una prenda superior, una inferior y calzado.</p>`;
+            outfitResult.innerHTML = `<p class="empty-message" style="color: #d97706;">Para generar un outfit inteligente necesitas al menos una prenda superior, una inferior y calzado.</p>`;
             return;
         }
 
-        // Seleccionar aleatoriamente una prenda de cada categoría esencial
+        // Mostrar estado de carga mientras Gemini piensa el estilo
+        generateOutfitBtn.disabled = true;
+        generateOutfitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Asesorando estilo...`;
+        outfitResult.innerHTML = `<p class="empty-message">Analizando combinaciones y teoría del color...</p>`;
+
+        try {
+            // Preparamos un resumen del armario en texto para enviárselo a Gemini
+            const wardrobeSummary = wardrobe.map((item, index) => 
+                `ID: ${index}, Categoría: ${item.category}, Color: ${item.color}, Estilo: ${item.style}`
+            ).join('\n');
+
+            const prompt = `Eres un asesor de imagen y estilista profesional. El usuario necesita un outfit para la siguiente ocasión: "${occasion}".
+            Aquí está la lista completa de prendas disponibles en su armario:
+            ${wardrobeSummary}
+
+            Por favor, selecciona las mejores prendas de la lista (necesitas elegir al menos una superior, una inferior y un calzado de los IDs proporcionados). Si consideras necesario un abrigo de la lista, inclúyelo también.
+            Devuélveme la respuesta estrictamente en un formato JSON válido con esta estructura exacta (sin texto adicional fuera del JSON):
+            {
+                "selectedIds": [ID_SUPERIOR, ID_INFERIOR, ID_CALZADO],
+                "advice": "Un consejo breve y motivador de por qué este estilo funciona para la ocasión y cómo combinar los colores."
+            }`;
+
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }]
+                })
+            });
+
+            const data = await response.json();
+            const textResponse = data.candidates[0].content.parts[0].text;
+            
+            // Limpiar posibles bloques de código markdown que devuelva el modelo
+            const cleanJsonText = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
+            const resultJson = JSON.parse(cleanJsonText);
+
+            // Buscar las prendas seleccionadas por Gemini en el armario
+            const selectedItems = resultJson.selectedIds.map(id => wardrobe.find((_, idx) => idx === id)).filter(Boolean);
+
+            // Renderizar resultado visual y el consejo de la IA
+            outfitResult.innerHTML = `
+                <div style="grid-column: 1 / -1; background: #e0e7ff; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                    <h3 style="color: #4f46e5; margin-bottom: 0.5rem;"><i class="fa-solid fa-wand-magic-sparkles"></i> Consejo del Estilista Virtual</h3>
+                    <p style="color: #374151; font-size: 0.95rem; line-height: 1.4;">${resultJson.advice}</p>
+                </div>
+            `;
+
+            const renderItemCard = (item) => `
+                <div class="clothing-card">
+                    <img src="${item.image}" alt="${item.category}">
+                    <div class="clothing-info">
+                        <h3>${item.category}</h3>
+                        <p><strong>Color:</strong> ${item.color}</p>
+                        <p><strong>Estilo:</strong> ${item.style}</p>
+                    </div>
+                </div>
+            `;
+
+            selectedItems.forEach(item => {
+                outfitResult.innerHTML += renderItemCard(item);
+            });
+
+        } catch (error) {
+            console.error("Error al conectar con Gemini:", error);
+            // Plan B automático si ocurre algún error de red o parseo: selección aleatoria inteligente
+            fallbackRandomOutfit(superiors, inferiors, shoes, coats, occasion);
+        } finally {
+            generateOutfitBtn.disabled = false;
+            generateOutfitBtn.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i> ¡Generar Outfit Ideal!`;
+        }
+    });
+
+    // Función de respaldo por si falla la API
+    function fallbackRandomOutfit(superiors, inferiors, shoes, coats, occasion) {
         const randomSuperior = superiors[Math.floor(Math.random() * superiors.length)];
         const randomInferior = inferiors[Math.floor(Math.random() * inferiors.length)];
         const randomShoes = shoes[Math.floor(Math.random() * shoes.length)];
         
-        let randomCoat = null;
-        if (coats.length > 0 && Math.random() > 0.5) {
-            randomCoat = coats[Math.floor(Math.random() * coats.length)];
-        }
-
-        // Mostrar el resultado visual
         outfitResult.innerHTML = `
-            <div style="grid-column: 1 / -1; text-align: center; margin-bottom: 1rem;">
-                <h3 style="color: #4f46e5;"><i class="fa-solid fa-sparkles"></i> ¡Outfit sugerido para ocasión: ${occasion.toUpperCase()}!</h3>
+            <div style="grid-column: 1 / -1; background: #fef3c7; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                <h3 style="color: #d97706;"><i class="fa-solid fa-triangle-exclamation"></i> Modo Local (Sin conexión a IA)</h3>
+                <p>Aquí tienes una combinación rápida para la ocasión: <strong>${occasion}</strong></p>
             </div>
         `;
-
+        
         const renderItemCard = (item, title) => `
             <div class="clothing-card">
                 <img src="${item.image}" alt="${title}">
@@ -228,10 +301,7 @@ document.addEventListener('DOMContentLoaded', () => {
         outfitResult.innerHTML += renderItemCard(randomSuperior, 'Parte Superior');
         outfitResult.innerHTML += renderItemCard(randomInferior, 'Parte Inferior');
         outfitResult.innerHTML += renderItemCard(randomShoes, 'Calzado');
-        if (randomCoat) {
-            outfitResult.innerHTML += renderItemCard(randomCoat, 'Abrigo / Chaqueta');
-        }
-    });
+    }
 
     // Cargar el armario al iniciar la app
     loadWardrobe();
