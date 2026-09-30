@@ -207,7 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- GENERADOR DE OUTFITS CON INTELIGENCIA ARTIFICIAL (GEMINI) ---
+// --- GENERADOR DE OUTFITS CON INTELIGENCIA ARTIFICIAL (GEMINI) ---
     const generateOutfitBtn = document.getElementById('generate-outfit-btn');
     const outfitResult = document.getElementById('outfit-result');
     const apiKeyInput = document.getElementById('api-key-input');
@@ -280,9 +280,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 "advice": "Un consejo breve y motivador de por qué este estilo funciona para la ocasión y cómo combinar los colores."
             }`;
 
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${currentApiKey}`, {
+            // Codificamos la API Key y agregamos la cabecera de autorización para soportar claves modernas tipo AQ.
+            const encodedApiKey = encodeURIComponent(currentApiKey);
+
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodedApiKey}`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${currentApiKey}`
+                },
                 body: JSON.stringify({
                     contents: [{ parts: [{ text: prompt }] }]
                 })
